@@ -1,13 +1,31 @@
 #include <vector>
 #include <iostream>
+#include <mutex>
 using namespace std;
+
+
 
 class X {
     vector<double> values;
-     
-    void initializeOne()   { values = {1.0}; }
-    void initializeTwo()   { values = {1.0, 2.0}; }
-    void initializeThree() { values = {1.0, 2.0, 3.0}; }
+    std::once_flag flag;
+    void initializeOne()   
+    {
+        std::cout << "initializeOne\n";
+        std::call_once( flag, [&]{ values = {1.0};
+                                    std::cout << "Call once initializeOne\n"; } ); 
+    }
+    void initializeTwo()   
+    { 
+        std::cout << "initializeTwo\n";
+        std::call_once( flag, [&]{ values = {1.0, 2.0};
+                                    std::cout << "Call once initializeTwo\n"; } ); 
+    }
+    void initializeThree() 
+    {
+        std::cout << "initializeThree\n";
+        std::call_once( flag, [&]{ values = {1.0, 2.0, 3.0};
+                                    std::cout << "Call once initializeThree\n"; } ); 
+    }
 
 public:
     explicit X(int i) noexcept {

@@ -3,23 +3,36 @@
 #include <iostream>
 #include <sstream> 
 #include <random>
+#include <mutex>
+
 
 using namespace std;
+std::once_flag flag;
+
 
 class Prize {
     string winnerId{"unknown"};
     std::random_device dev{};
     std::mt19937 rng{dev()};  
     std::uniform_int_distribution<int> dist{10, 50};
-    
+    std::mutex mtxRandomGenerator;
 public:
     void setWinner() {
         auto id = this_thread::get_id();
-        auto sleepDuration = dist(rng);
+        int sleepDuration{};
+        {
+            std::lock_guard<mutex> locker ( mtxRandomGenerator );
+            sleepDuration = dist(rng);
+        }
         stringstream msg;
         msg << "Called " << __FUNCTION__ << "(" << id << "). Chasing time: " << sleepDuration << "ms\n";
         cout << msg.str(); // single operation on stream is atomic
-        
+        this_thread::sleep_for( std::chrono::milliseconds(sleepDuration) );
+        std::call_once(flag, [&]{ 
+            stringstream ss;
+            ss << id;
+            winnerId = ss.str(); 
+        });
         // TODO: set me as a winner, but don't let others overwrite this!
     }
       

@@ -3,21 +3,23 @@
 #include <iostream>
 using namespace std;
 
-class X {
+class X 
+{
     mutable mutex mtx_;
     int value_ = 0;
 
 public:
     explicit X(int v) : value_(v) {}
 
-    bool operator<(const X & other) const {
-        lock_guard<mutex> ownGuard(mtx_);
-        lock_guard<mutex> otherGuard(other.mtx_);
+    bool operator<(const X & other) const 
+    {
+        scoped_lock<mutex, mutex> ownGuard(mtx_, other.mtx_);
         return value_ < other.value_;
     }
 };
 
-int main() {
+int main() 
+{
     X x1(5);
     X x2(6);
     thread t1([&] {
@@ -30,6 +32,5 @@ int main() {
     });
     t1.join();
     t2.join();
-
     return 0;
 }

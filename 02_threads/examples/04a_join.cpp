@@ -9,11 +9,11 @@ void casualJob() {
 
 int main() {
     thread t([] {
-        this_thread::sleep_for(1s);
+        // this_thread::sleep_for(1s);
         cout << "Thread job done" << endl;
     });
     casualJob();
-    t.join();
+    t.detach();
     return 0;
 }
 

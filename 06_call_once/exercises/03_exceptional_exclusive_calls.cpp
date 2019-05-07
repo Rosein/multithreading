@@ -37,11 +37,16 @@ class X {
   
     void initializePierdyliard() {
         cout << __FUNCTION__ << '\n';
-        call_once(once, [&]{
-            cout << "Call once initializePierdyliard\n";
-            throw std::bad_alloc{};
-            // TODO: Can you fix me?
-        });
+        try{
+            call_once(once, [&]{
+                cout << "Call once initializePierdyliard\n";
+                throw std::bad_alloc{};
+                // TODO: Can you fix me?
+            });
+        } catch ( ... ) {
+            
+        }
+
     }
 
 public:
