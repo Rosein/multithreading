@@ -18,23 +18,35 @@ class PingPong
     std::atomic<bool> isAlreadyCheckedTime = true;
     std::atomic<bool> stillPlay = true;
     using Lock = std::unique_lock<mutex>;
-
+    void printState( const std::string & foo )
+    {
+        std::cout << "=============" << foo << "=================" << std::endl
+                  << std::boolalpha << "isAlreadyCheckedTime: " << isAlreadyCheckedTime << std::endl
+                  << "stillPlay: " << stillPlay << std::endl
+                  << "repetitions_: " << repetitions_ << std::endl
+                  << "numbPings: " << numbPings << std::endl
+                  << "numbPongs: " << numbPongs << std::endl
+                  << "========================================" << std::endl;
+    }
 public:
     PingPong(int repetitions)
         : repetitions_(repetitions)
     {}
 
     void ping() {
-        // TODO: implement me :)
+
         while( repetitions_ > 0  && stillPlay )
         {
             Lock locker ( mtxSwitcher );
-            cv.wait( locker, [=]{ return numbPings != ( numbPongs + 1 ) && isAlreadyCheckedTime; } );
+            // printState( "ping" );
+            cv.wait( locker, [=]{ return ( numbPings != ( numbPongs + 1 ) && isAlreadyCheckedTime ) || !stillPlay; } );
             isAlreadyCheckedTime = false;
+            if( !stillPlay )
+                break;
             if( repetitions_ > 0 )
             {
                 std::stringstream ss;
-                ss << "ping " << numbPings++ << '\n';
+                ss << "$ ping " << numbPings++ << '\n';
                 std::cout << ss.str();
                 cv.notify_all();
             }
@@ -48,15 +60,17 @@ public:
     }
 
     void pong() {
-        // TODO: implement me :)
         while( repetitions_ >= 0 && stillPlay )
         {
             Lock locker ( mtxSwitcher );
-            cv.wait( locker, [=]{ return numbPings == ( numbPongs + 1 ); } );
+            // printState( "pong" );
+            cv.wait( locker, [=]{ return numbPings == ( numbPongs + 1 ) || !stillPlay; } );
+            if( !stillPlay )
+                break;
             if ( repetitions_ != 0 )
             {
                 std::stringstream ss;
-                ss << "pong " << numbPongs++ << '\n';
+                ss << "$ pong " << numbPongs++ << '\n';
                 std::cout << ss.str();
                 repetitions_--;
                 cv.notify_all();
@@ -65,21 +79,31 @@ public:
             {
                 std::cout << "Pong reached repetitions limit\n";
                 repetitions_--;
+                
             }
-            
-        }
-        
+        }   
     }
 
     void stop([[maybe_unused]] chrono::seconds timeout) {
         // TODO: should stop execution after timeout
-        Lock locker ( mtxSwitcher );
-        cv.wait_for( locker, std::chrono::seconds( 1 ), [=]{ return !isAlreadyCheckedTime; } );
-        timeout = timeout - std::chrono::seconds( 1 );
-        if( timeout < std::chrono::seconds(0) )
-            stillPlay = false;
-        isAlreadyCheckedTime = true;
-        cv.notify_all();
+        while( timeout.count() >= 0 && repetitions_ >= 0) {
+            Lock locker ( mtxSwitcher );
+            
+            cv.wait_for( locker, std::chrono::seconds( 1 ), [=]{ return numbPings != ( numbPongs + 1 ) && !isAlreadyCheckedTime; } );
+            
+            // printState( "stop" );
+            // std::cout << "$ time counter :" <<  timeout.count() << std::endl;
+            timeout = timeout - std::chrono::seconds( 1 );
+            isAlreadyCheckedTime = true;
+            if( timeout <= std::chrono::seconds(0) )
+            {
+                stillPlay = false;
+                std::cout << "Timeout" << std::endl;
+                cv.notify_all();
+                break;
+            }
+            cv.notify_all();
+        }
     }
         
 };
@@ -94,7 +118,7 @@ int main(int argc, char** argv) {
     PingPong pp(repetitions);
     thread t1(&PingPong::ping, &pp);
     thread t2(&PingPong::pong, &pp);
-    thread t3(&PingPong::stop, &pp, chrono::seconds(timeout));
+    thread t3(&PingPong::stop, &pp, chrono::seconds( timeout ));
     t1.join();
     t2.join();
     t3.join();
