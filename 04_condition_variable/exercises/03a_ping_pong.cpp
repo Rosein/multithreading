@@ -78,6 +78,7 @@ public:
         {
             Lock locker ( mtxSwitcher );
             cv.wait_for( locker, std::chrono::seconds( 1 ), [=]{ return numbPings != ( numbPongs + 1 ) && !isAlreadyCheckedTime; } );
+            std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
             timeout = timeout - std::chrono::seconds( 1 );
             isAlreadyCheckedTime = true;
             if( timeout <= std::chrono::seconds(0) )
