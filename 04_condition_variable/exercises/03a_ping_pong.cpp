@@ -18,16 +18,6 @@ class PingPong
     std::atomic<bool> isAlreadyCheckedTime = true;
     std::atomic<bool> stillPlay = true;
     using Lock = std::unique_lock<mutex>;
-    void printState( const std::string & foo )
-    {
-        std::cout << "=============" << foo << "=================" << std::endl
-                  << std::boolalpha << "isAlreadyCheckedTime: " << isAlreadyCheckedTime << std::endl
-                  << "stillPlay: " << stillPlay << std::endl
-                  << "repetitions_: " << repetitions_ << std::endl
-                  << "numbPings: " << numbPings << std::endl
-                  << "numbPongs: " << numbPongs << std::endl
-                  << "========================================" << std::endl;
-    }
 public:
     PingPong(int repetitions)
         : repetitions_(repetitions)
@@ -38,7 +28,6 @@ public:
         while( repetitions_ > 0  && stillPlay )
         {
             Lock locker ( mtxSwitcher );
-            // printState( "ping" );
             cv.wait( locker, [=]{ return ( numbPings != ( numbPongs + 1 ) && isAlreadyCheckedTime ) || !stillPlay; } );
             isAlreadyCheckedTime = false;
             if( !stillPlay )
@@ -46,7 +35,7 @@ public:
             if( repetitions_ > 0 )
             {
                 std::stringstream ss;
-                ss << "$ ping " << numbPings++ << '\n';
+                ss << "ping " << numbPings++ << '\n';
                 std::cout << ss.str();
                 cv.notify_all();
             }
@@ -59,18 +48,18 @@ public:
         }
     }
 
-    void pong() {
+    void pong() 
+    {
         while( repetitions_ >= 0 && stillPlay )
         {
             Lock locker ( mtxSwitcher );
-            // printState( "pong" );
             cv.wait( locker, [=]{ return numbPings == ( numbPongs + 1 ) || !stillPlay; } );
             if( !stillPlay )
                 break;
             if ( repetitions_ != 0 )
             {
                 std::stringstream ss;
-                ss << "$ pong " << numbPongs++ << '\n';
+                ss << "pong " << numbPongs++ << '\n';
                 std::cout << ss.str();
                 repetitions_--;
                 cv.notify_all();
@@ -79,20 +68,16 @@ public:
             {
                 std::cout << "Pong reached repetitions limit\n";
                 repetitions_--;
-                
             }
         }   
     }
 
-    void stop([[maybe_unused]] chrono::seconds timeout) {
-        // TODO: should stop execution after timeout
-        while( timeout.count() >= 0 && repetitions_ >= 0) {
+    void stop([[maybe_unused]] chrono::seconds timeout) 
+    {
+        while( timeout.count() >= 0 && repetitions_ >= 0) 
+        {
             Lock locker ( mtxSwitcher );
-            
             cv.wait_for( locker, std::chrono::seconds( 1 ), [=]{ return numbPings != ( numbPongs + 1 ) && !isAlreadyCheckedTime; } );
-            
-            // printState( "stop" );
-            // std::cout << "$ time counter :" <<  timeout.count() << std::endl;
             timeout = timeout - std::chrono::seconds( 1 );
             isAlreadyCheckedTime = true;
             if( timeout <= std::chrono::seconds(0) )
@@ -105,9 +90,7 @@ public:
             cv.notify_all();
         }
     }
-        
 };
-
 
 int main(int argc, char** argv) {
     if (argc != 3) {
