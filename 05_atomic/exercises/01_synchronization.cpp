@@ -3,15 +3,20 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <iomanip>
 #include <iostream>
 using namespace std;
 
 vector<int> generateContainer() {
+    std::mutex outputMtx;
     vector<int> input = {2, 4, 6, 8, 10, 1, 3, 5, 7, 9};
     vector<int> output;
     vector<thread> threads;
     for (auto i = 0u; i < input.size(); i++) {
-        threads.emplace_back([&]{ output.push_back(input[i]); });
+        threads.emplace_back([&, i]{
+            std::lock_guard<mutex> locker ( outputMtx );
+            output.push_back(input[i]); 
+        });
     }
     for (auto && t : threads) {
         t.join();
@@ -20,16 +25,26 @@ vector<int> generateContainer() {
 }
 
 vector<int> generateOtherContainer() {
-    int start = 5;
-    bool add = true;
+    atomic<int> start;
+    start.store( 5 );
+    atomic<bool> add ;
+    add.store( true );
+    std::mutex outputMtx;
     vector<int> output;
     vector<thread> threads;
     for (int i = 0; i < 10; i++) {
-        threads.emplace_back([&]{
+        threads.emplace_back([&, i]{
+            
             if (add)
+            {
+                std::lock_guard<mutex> locker ( outputMtx );
                 output.push_back(start+=i);
+            }
             else
+            {
+                std::lock_guard<mutex> locker ( outputMtx );
                 output.push_back(start-=i);
+            }
             add = !add;
         });
     }
@@ -42,7 +57,7 @@ vector<int> generateOtherContainer() {
 void powerContainer(vector<int>& input) {
     vector<thread> threads;
     for (auto i = 0u; i < input.size(); i++) {
-        threads.emplace_back([&]{ input[i]*=input[i]; });
+        threads.emplace_back([&, i ]{ input[ i ]*=input[ i ]; });
     }
     for (auto && t : threads) {
         t.join();
@@ -51,7 +66,7 @@ void powerContainer(vector<int>& input) {
 
 void printContainer(const vector<int>& c) {
     for (const auto & value : c)
-        cout << value << " ";
+        cout << setw( 4 ) << value ;
     cout << endl;
 }
 
@@ -67,4 +82,3 @@ int main() {
     printContainer(container2);
     return 0;
 }
-
