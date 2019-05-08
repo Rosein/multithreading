@@ -15,9 +15,9 @@ int get_number()
 template< class Function, class... Args >
 decltype(auto) schedule( Function&& func, Args&&... args )
 {
-    std::promise<int> p;
-    std::future<int> f = p.get_future();
-    auto wrapped_func = [&] (std::promise<int> p) {
+    std::promise<decltype(func(args...))> p;
+    std::future<decltype(func(args...))> f = p.get_future();
+    auto wrapped_func = [&] (std::promise<decltype(func(args...))> p) {
         try {
             p.set_value( std::invoke(std::forward<Function>(func), 
                                      std::forward<Args>(args)... ));
@@ -31,9 +31,9 @@ decltype(auto) schedule( Function&& func, Args&&... args )
 }
 
 // TODO: Commented code should work after proper implementation 
-//auto temporary() {
-//    return schedule([](std::string s){ return s + " appended"; }, "Something");
-//}
+auto temporary() {
+   return schedule([](std::string s){ return s + " appended"; }, "Something");
+}
 
 int main()
 {
@@ -41,8 +41,8 @@ int main()
     std::cout << fut1.get() << '\n';
     auto fut2 = schedule([](int i){ return i*i; }, 15);
     std::cout << fut2.get() << '\n';
-    // auto fut3 = temporary();
-    // std::cout << fut3.get() << '\n';
+    auto fut3 = temporary();
+    std::cout << fut3.get() << '\n';
     return 0;
 }
 
