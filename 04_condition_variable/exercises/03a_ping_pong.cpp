@@ -10,12 +10,11 @@ using namespace std;
 
 class PingPong 
 {
-    int repetitions_;
+    std::atomic<int> repetitions_;
     int numbPings{};
     int numbPongs{};
     std::mutex mtxSwitcher;
     std::condition_variable cv;
-    std::atomic<bool> isAlreadyCheckedTime = true;
     std::atomic<bool> stillPlay = true;
     using Lock = std::unique_lock<mutex>;
 public:
@@ -28,8 +27,7 @@ public:
         while( repetitions_ > 0  && stillPlay )
         {
             Lock locker ( mtxSwitcher );
-            cv.wait( locker, [=]{ return ( numbPings != ( numbPongs + 1 ) && isAlreadyCheckedTime ) || !stillPlay; } );
-            isAlreadyCheckedTime = false;
+            cv.wait( locker, [=]{ return ( numbPings != ( numbPongs + 1 ) ) || !stillPlay; } );
             if( !stillPlay )
                 break;
             if( repetitions_ > 0 )
@@ -68,27 +66,31 @@ public:
             {
                 std::cout << "Pong reached repetitions limit\n";
                 repetitions_--;
+                cv.notify_all();
+                stillPlay = false;
             }
         }   
     }
 
-    void stop([[maybe_unused]] chrono::seconds timeout) 
+void stop( [[maybe_unused]] chrono::seconds timeout ) 
     {
-        while( timeout.count() >= 0 && repetitions_ >= 0) 
+        std::chrono::steady_clock::time_point beg = std::chrono::steady_clock::now();
+        Lock locker ( mtxSwitcher );
+        cv.wait( locker, [=](){ 
+                                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                                // std::stringstream ss;
+                                // ss << ( std::chrono::duration_cast<std::chrono::seconds>(end - beg) ).count() << '\n';
+                                // std::cout << ss.str();
+                                return !stillPlay ||
+                                       ( std::chrono::duration_cast<std::chrono::seconds>(end - beg) ).count() >= timeout.count(); 
+                                });
         {
-            Lock locker ( mtxSwitcher );
-            cv.wait_for( locker, std::chrono::seconds( 1 ), [=]{ return numbPings != ( numbPongs + 1 ) && !isAlreadyCheckedTime; } );
-            std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
-            timeout = timeout - std::chrono::seconds( 1 );
-            isAlreadyCheckedTime = true;
-            if( timeout <= std::chrono::seconds(0) )
-            {
+            if ( stillPlay )
+            {   
                 stillPlay = false;
                 std::cout << "Timeout" << std::endl;
                 cv.notify_all();
-                break;
             }
-            cv.notify_all();
         }
     }
 };
